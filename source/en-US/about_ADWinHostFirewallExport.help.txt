@@ -1,0 +1,91 @@
+TOPIC
+    about_ADWindowsHostFirewallExport
+
+SHORT DESCRIPTION
+    A PowerShell module for retrieving, auditing, and exporting firewall rules and manageability data
+    from Active Directory hosts.
+
+LONG DESCRIPTION
+    ADWindowsHostFirewallExport is a PowerShell module designed to query Active Directory
+    for active servers and workstations, evaluate their manageability (via WS-Man), and
+    retrieve detailed firewall rules and profile settings.
+
+    The module includes:
+    - **Get-ADHostManageability**: Identifies Active Directory computers and determines if they are remotely accessible.
+    - **Get-ADHostFirewallStatus**: Retrieves firewall profile settings (Domain, Private, Public).
+    - **Get-ADHostFirewallStatusReport**: Combines manageability data with firewall status.
+    - **Get-ADHostFirewallRulesExport**: Collects and exports firewall rule details, including profiles, protocols, addresses, and programs.
+    - **Resolve-FirewallResourceString**: Converts Windows firewall resource strings into human-readable names.
+
+    The module dynamically loads and compiles a C# class (`ResourceStringResolver`) to resolve firewall resource names,
+    eliminating the need to retrieve and parse external files.
+
+    Firewall rule data includes:
+    - Profile (Domain, Private, Public)
+    - Rule action (Allow, Block)
+    - Protocol, Port, Addresses
+    - Associated Programs
+    - Resolved Rule Group Names
+
+    The module supports exporting data to CSV format, allowing administrators to audit firewall configurations
+    and determine which systems are remotely manageable.
+
+EXAMPLES
+    PS C:\> Get-ADHostManageability -DaysInactive 30 -Servers -Verbose
+
+    Retrieves Active Directory servers that have been active within the last 30 days,
+    checks their manageability (via WS-Man), and returns the results.
+
+    PS C:\> Get-ADHostFirewallStatusReport -ComputerName "Server01"
+
+    Retrieves firewall status and manageability details for "Server01".
+
+    PS C:\> Get-ADHostFirewallRulesExport -ComputerName "Server01"
+
+    Retrieves and exports enabled inbound firewall rules from the remote server "Server01".
+
+    PS C:\>
+    # Generate timestamped filename in YYYY.MM.DD.HHMM format
+    $timestamp = Get-Date -Format "yyyy.MM.dd.HHmm"
+    $outputFilePath = "C:\temp\$timestamp.firewallRules.csv"
+
+    # Ensure output directory exists
+    $outputDir = Split-Path -Path $outputFilePath
+    if (-not (Test-Path -Path $outputDir)) {
+        New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
+    }
+
+    $results = Get-ADHostFirewallStatusReport -ComputerName (Get-ADHostManageability -DaysInactive 30 -Servers).ComputerName
+    $remotableServers = $results | Where-Object { $_.IsRemotable }
+
+    $firewallRules = Get-ADHostFirewallRulesExport -ComputerName $remotableServers.ComputerName -Verbose
+
+    $firewallRules | Export-Csv -Path $outputFilePath -NoTypeInformation
+    Start-Process $outputFilePath
+
+    Exports firewall rules from all remotely manageable servers to a CSV file with a
+    timestamped filename.
+
+NOTE:
+    Thank you to all contributors who helped refine this module by providing feedback, testing, and code contributions.
+
+TROUBLESHOOTING NOTES:
+    - If a host is unreachable, verify that WS-Management (WinRM) is enabled and firewall rules allow remote management.
+    - If firewall resource strings do not resolve correctly, ensure that `ResourceStringResolver` is loaded in memory.
+    - For debugging, use `Write-TimestampedMessage -Type Debug` to trace execution flow.
+
+SEE ALSO
+    - {{ Add GitHub project repository link here }}
+    - Get-ADHostManageability
+    - Get-ADHostFirewallStatus
+    - Get-ADHostFirewallStatusReport
+    - Get-ADHostFirewallRulesExport
+    - Resolve-FirewallResourceString
+
+COMPONENTS
+    - Windows Defender Firewall with Advanced Security (NetSecurity module)
+    - WS-Management (WinRM)
+    - Active Directory Module for Windows PowerShell
+
+KEYWORDS
+    Active Directory, Firewall, Export, Remote Management, WS-Man, PowerShell, Security, Audit
